@@ -1,58 +1,68 @@
 # ZenDay
 
-Ultra-minimalistischer Tagesplaner. Ein Bildschirm, keine Menüs, lokale Speicherung.
+Minimalistischer Wochenplaner mit Gewohnheits-Tracking und optionalem
+Fokus-Modus (App-/Website-Sperren, nur Windows).
 
-## Dateistruktur
+**Web-Version (iPhone/iPad/Desktop-Browser):**
+https://tomchristoffel1-del.github.io/zenday/
 
+Auf dem iPhone/iPad in Safari öffnen → Teilen-Button → "Zum Home-Bildschirm" →
+läuft danach wie eine eigene App, auch offline (Service Worker cached alles
+beim ersten Laden).
+
+## Plattformen
+
+- **Windows**: natives Desktop-Binary, inkl. Fokus-Modus (Programme/Websites
+  blockieren, App-Zeitlimits, Autostart).
+- **Web**: läuft überall im Browser, keine Installation nötig. Fokus-Modus ist
+  hier bewusst deaktiviert (iOS/Browser erlauben kein App-Blocking) – der Code
+  dafür ist trotzdem mit ausgeliefert, tut auf Web/iOS aber nichts.
+- **iOS nativ**: Code ist vorbereitet, Build braucht einen Mac mit Xcode
+  (Apple-Einschränkung, nicht umgehbar).
+
+**Wichtig:** Jede Plattform speichert ihre Daten getrennt (kein Sync). Die
+Windows-App und die Web-Version auf dem iPhone sind zwei unabhängige
+Datenstände.
+
+## Features
+
+- Wochenplan aus wiederkehrenden Aufgaben (Vorlagen) + Ad-hoc-Einträgen pro Tag
+- Aufgaben per Klick bearbeiten, mit Wahl "nur heute" oder "für alle Tage"
+- Punkte-/Belohnungssystem mit freischaltbaren Akzentfarben und Dark Mode
+- Tägliches Tracking: Stimmung, gesund gegessen, kein Zucker (Sport automatisch
+  aus dem "Sport & Training"-Task), Jahresübersicht mit Statistiken
+- Fokus-Modus (nur Windows): globale Zeitfenster-Sperre, benannte Blocklisten
+  mit Aufgaben verknüpft, Easy/Medium/Hard-Bypass mit Wartezeit, App-Zeitlimits
+  unabhängig von Aufgaben
+
+## Entwicklung
+
+Lokale Flutter-SDK-Kopie liegt in `Flutter/` (nicht Teil des Repos, siehe
+`.gitignore` – bei Bedarf eigenes Flutter-SDK installieren).
+
+```bash
+flutter pub get
+flutter run -d windows   # natives Windows-Binary
+flutter run -d chrome    # Web-Version lokal testen
 ```
-zenday/
-├── pubspec.yaml
-└── lib/
-    ├── main.dart              # Einstiegspunkt, Theme-Auswahl (hell/dunkel)
-    ├── theme.dart              # Farben & Typografie (native Systemschrift, monochrom)
-    ├── models.dart             # DayData / TimelineEntry
-    ├── storage.dart            # Lokale JSON-Persistenz via SharedPreferences
-    ├── home_screen.dart        # Der einzige Screen der App
-    └── widgets/
-        ├── focus_field.dart    # Tages-Statement oben
-        ├── timeline_row.dart   # Eine Zeile der Zeitleiste
-        └── habit_dot.dart      # Ein Habit-Punkt unten
+
+### Web-Version neu deployen
+
+```bash
+flutter build web --release --base-href /zenday/
+# build/web nach docs/ kopieren, dann committen & pushen
 ```
 
-## Einmalige Einrichtung (Flutter SDK ist auf diesem Rechner nicht installiert)
-
-1. Flutter SDK installieren: https://docs.flutter.dev/get-started/install/windows
-2. In diesem Ordner die fehlenden Plattform-Ordner erzeugen (bestehende `lib/` und
-   `pubspec.yaml` bleiben dabei erhalten):
-
-   ```bash
-   flutter create --platforms=windows,ios,macos .
-   ```
-
-3. Abhängigkeiten installieren:
-
-   ```bash
-   flutter pub get
-   ```
-
-4. Starten:
-
-   ```bash
-   flutter run -d windows   # auf Windows
-   flutter run -d ios       # in Xcode-Simulator auf macOS, für echtes iPhone: Xcode + Signing nötig
-   ```
+GitHub Pages ist auf `main`-Branch, Ordner `/docs` eingestellt (Repo →
+Settings → Pages).
 
 ## Design
 
-- Schriftart: native Systemschrift (SF Pro auf iOS/macOS, Segoe UI Variable auf
-  Windows) via `fontFamilyFallback`, viel Weißraum, keine Icons außer feinen
-  Kreis-Markern.
-- Farben: monochrom, ein einziger Akzentton für "erledigt" – siehe `lib/theme.dart`.
-- Kein Menü, kein Tab-Bar, keine zweite Seite. Alles passiert in `HomeScreen`.
+- Monochrome Palette mit freischaltbaren Akzentfarben, native Systemschrift
+  (SF Pro / Segoe UI Variable), viel Weißraum.
+- Ein Screen (`planner_screen.dart`), keine tiefen Menüs.
 
 ## Daten
 
-- Pro Tag ein JSON-Eintrag in `SharedPreferences` (Key `zenday_YYYY-MM-DD`).
-- Habit-Namen sind global und änderbar per Long-Press auf den Punkt unten.
-- Keine Netzwerkaufrufe, keine Ladezeiten – alles synchron aus dem lokalen Cache
-  nach dem ersten `await`.
+- `shared_preferences` (lokal, kein Server). Siehe `lib/storage.dart` für alle
+  Keys/Strukturen.
