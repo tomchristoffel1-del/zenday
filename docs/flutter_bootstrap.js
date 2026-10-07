@@ -40,8 +40,55 @@ if (!window._flutter) {
 }
 _flutter.buildConfig = {"engineRevision":"af7e796e161ae0bb1ff0758c71a7105418bd9ded","wasmHashes":{"canvaskit.wasm":"fbed517a43e82452404446683f00f2e876d835aed84410695759e67b6bb01cd3","chromium/canvaskit.wasm":"ae8ff1d858140f7b1300ced3fa89fb8c9dce0a400a0f4f1e11f6dcfb3315fdcf","skwasm.wasm":"e540fd5e8303b7b68ec2718cb49e9c421f8ade3075b15e02a7059a62654df9a1","skwasm_heavy.wasm":"565f5cc1cca6ab120f11934b105f01fec4b58b480c82e0889dca93af8e6f8635","webparagraph/canvaskit.wasm":"0ce1b05082efdc8529550e8a01f6ff0593972d55525035010e26f5600aa9f254","wimp.wasm":"e924eaafd801d41e017d178f3fd5cf8a417f641fe35c9ed34a4e1d7582283e0c"},"builds":[{"compileTarget":"dart2js","renderer":"canvaskit","mainJsPath":"main.dart.js"},{}]};
 
-_flutter.loader.load({
-  serviceWorkerSettings: {
-    serviceWorkerVersion: "1363920880" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
+
+// Bewusst ohne serviceWorkerSettings: Flutters eigener Service Worker ist in dieser
+// Version eine Attrappe, die sich selbst abmeldet. Stattdessen läuft sw.js.
+_flutter.loader.load();
+
+// Muss zu sw.js passen.
+const ZENDAY_CACHE = 'zenday-v1';
+const ZENDAY_CROSS_ORIGIN_HOSTS = ['www.gstatic.com', 'fonts.gstatic.com'];
+let zendayWarmedUp = false;
+
+// Beim allerersten Besuch lief noch nichts über den Service Worker. Deshalb alles, was die
+// Seite bis jetzt geladen hat (kommt aus dem Browser-Cache, kein zweiter Download), einmal
+// in den Offline-Speicher legen. Danach pflegt sw.js den Speicher selbst.
+async function zendayWarmUpOfflineCache() {
+  if (zendayWarmedUp) return;
+  zendayWarmedUp = true;
+  try {
+    await navigator.serviceWorker.ready;
+    const cache = await caches.open(ZENDAY_CACHE);
+    const wanted = new Set([location.href.split('#')[0]]);
+    for (const entry of performance.getEntriesByType('resource')) {
+      const url = new URL(entry.name);
+      if (url.origin === location.origin || ZENDAY_CROSS_ORIGIN_HOSTS.includes(url.hostname)) wanted.add(entry.name);
+    }
+    await Promise.all(
+      [...wanted].map(async (url) => {
+        if (await cache.match(url)) return;
+        try {
+          const res = await fetch(url);
+          if (res.status === 200) await cache.put(url, res);
+        } catch (_) {
+          // Einzelne Datei nicht ladbar: egal, der Service Worker holt sie beim nächsten Besuch nach.
+        }
+      }),
+    );
+  } catch (_) {
+    // Kein Service Worker verfügbar (z. B. privater Modus): App läuft normal, nur ohne Offline-Start.
   }
-});
+}
+
+function zendayRegisterServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker nicht registriert:', e));
+  window.addEventListener('flutter-first-frame', () => setTimeout(zendayWarmUpOfflineCache, 1500), { once: true });
+  setTimeout(zendayWarmUpOfflineCache, 15000);
+}
+
+if (document.readyState === 'complete') {
+  zendayRegisterServiceWorker();
+} else {
+  window.addEventListener('load', zendayRegisterServiceWorker);
+}
