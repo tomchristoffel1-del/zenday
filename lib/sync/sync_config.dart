@@ -3,5 +3,5 @@
 /// Anmeldung und die Firestore-Regeln, nicht durch Geheimhaltung des Schlüssels.
 ///
 /// Solange leer, bleibt der Sync deaktiviert und die App arbeitet rein lokal.
-const kFirebaseProjectId = '';
-const kFirebaseApiKey = '';
+const kFirebaseProjectId = 'zendaytom2';
+const kFirebaseApiKey = 'AIzaSyAOoo0PJi44x6TdCx_bFm6DlikZsOK4QNM';
