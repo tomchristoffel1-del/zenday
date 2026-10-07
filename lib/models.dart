@@ -18,6 +18,7 @@ class TaskTemplate {
   String? endTime;
   String? linkedListId; // verknüpfte Blockliste (FocusGuard sperrt während startTime–endTime)
   Set<String> excludedDates; // "yyyy-MM-dd" – einzelne Ausnahmetage (z.B. Reisetag)
+  bool isStudy; // zählt (über Start–Ende) zur geplanten Lernzeit
 
   TaskTemplate({
     String? id,
@@ -28,6 +29,7 @@ class TaskTemplate {
     this.endTime,
     this.linkedListId,
     Set<String>? excludedDates,
+    this.isStudy = false,
   })  : id = id ?? newId(),
         customDays = customDays ?? {},
         excludedDates = excludedDates ?? {};
@@ -58,6 +60,7 @@ class TaskTemplate {
         'endTime': endTime,
         'linkedListId': linkedListId,
         'excludedDates': excludedDates.toList(),
+        'isStudy': isStudy,
       };
 
   factory TaskTemplate.fromJson(Map<String, dynamic> json) => TaskTemplate(
@@ -76,6 +79,7 @@ class TaskTemplate {
         excludedDates: (json['excludedDates'] as List<dynamic>? ?? [])
             .map((e) => e as String)
             .toSet(),
+        isStudy: json['isStudy'] as bool? ?? false,
       );
 }
 
@@ -88,6 +92,7 @@ class AdHocTask {
   String? endTime;
   bool done;
   String? linkedListId;
+  bool isStudy;
 
   AdHocTask({
     String? id,
@@ -96,6 +101,7 @@ class AdHocTask {
     this.endTime,
     this.done = false,
     this.linkedListId,
+    this.isStudy = false,
   }) : id = id ?? newId();
 
   Map<String, dynamic> toJson() => {
@@ -105,6 +111,7 @@ class AdHocTask {
         'endTime': endTime,
         'done': done,
         'linkedListId': linkedListId,
+        'isStudy': isStudy,
       };
 
   factory AdHocTask.fromJson(Map<String, dynamic> json) => AdHocTask(
@@ -114,6 +121,7 @@ class AdHocTask {
         endTime: json['endTime'] as String?,
         done: json['done'] as bool? ?? false,
         linkedListId: json['linkedListId'] as String?,
+        isStudy: json['isStudy'] as bool? ?? false,
       );
 }
 

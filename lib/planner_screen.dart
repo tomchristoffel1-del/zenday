@@ -5,12 +5,17 @@ import 'app_settings.dart';
 import 'focus_engine.dart';
 import 'focus_guard.dart';
 import 'focus_screen.dart';
+import 'income_screen.dart';
 import 'manage_templates_screen.dart';
 import 'models.dart';
 import 'notifications.dart';
+import 'platform_info.dart';
 import 'rewards.dart';
 import 'rewards_screen.dart';
 import 'storage.dart';
+import 'study_screen.dart';
+import 'sync/sync_service.dart';
+import 'sync_screen.dart';
 import 'task_edit_sheet.dart';
 import 'theme.dart';
 import 'tracking_stats_screen.dart';
@@ -50,6 +55,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Timer? _reminderTimer;
   final Set<String> _notifiedToday = {};
+  bool _studyRunning = false;
 
   @override
   void initState() {
@@ -57,13 +63,16 @@ class _PlannerScreenState extends State<PlannerScreen> {
     _loadDay();
     _loadTemplates();
     _loadPoints();
+    _loadStudyRunning();
     _focusGuard.start(() => FocusEngine.computeEffective(_storage).then((a) => a.merged));
     _usageGuard.start();
     _reminderTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkReminders());
+    SyncService.instance.revision.addListener(_onCloudChange);
   }
 
   @override
   void dispose() {
+    SyncService.instance.revision.removeListener(_onCloudChange);
     _focusGuard.stop();
     _usageGuard.stop();
     _reminderTimer?.cancel();
@@ -76,12 +85,90 @@ class _PlannerScreenState extends State<PlannerScreen> {
 
   Future<void> _loadTemplates() async {
     final t = await _storage.loadTemplates();
+    if (!mounted) return;
     setState(() => _templates = t);
   }
 
   Future<void> _loadPoints() async {
     final p = await _storage.loadPoints();
+    if (!mounted) return;
     setState(() => _points = p);
+  }
+
+  Future<void> _loadStudyRunning() async {
+    final running = await _storage.loadStudyRunningStart() != null;
+    if (!mounted) return;
+    setState(() => _studyRunning = running);
+  }
+
+  /// Daten kamen aus der Cloud (anderes Gerät): betroffene Teile neu laden.
+  void _onCloudChange() {
+    final keys = SyncService.instance.lastChangedKeys;
+    final day = _selectedDate;
+    final dayKeys = {
+      'zenday_adhoc_${_dayString(day)}',
+      'zenday_tpldone_${_dayString(day)}',
+      'zenday_order_${_dayString(day)}',
+      'zenday_tracking_${_dayString(day)}',
+    };
+    if (keys.any(dayKeys.contains)) _loadDay();
+    if (keys.contains('zenday_templates')) _loadTemplates();
+    if (keys.contains('zenday_focus_points')) _loadPoints();
+    if (keys.contains('zenday_study_running_start')) _loadStudyRunning();
+  }
+
+  static String _dayString(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Widget _moreMenu(ZenColors colors) {
+    final darkUnlocked = _points >= AppSettings.darkModeUnlockPoints;
+    final isDark = AppSettings.themeMode.value == ThemeMode.dark;
+
+    PopupMenuItem<String> item(String value, IconData icon, String label, {bool dim = false}) {
+      return PopupMenuItem<String>(
+        value: value,
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: dim ? colors.textTertiary : colors.textSecondary),
+            const SizedBox(width: 12),
+            Text(label, style: TextStyle(fontSize: 14, color: dim ? colors.textTertiary : colors.textPrimary)),
+          ],
+        ),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'Mehr',
+      color: colors.surface,
+      padding: EdgeInsets.zero,
+      icon: Icon(Icons.more_horiz, size: 22, color: colors.textSecondary),
+      onSelected: (value) {
+        switch (value) {
+          case 'plan':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ManageTemplatesScreen(onChanged: _loadTemplates)),
+            );
+          case 'focus':
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const FocusScreen()));
+          case 'sync':
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncScreen()));
+          case 'theme':
+            _toggleTheme();
+        }
+      },
+      itemBuilder: (_) => [
+        item('plan', Icons.tune, 'Grundplan bearbeiten'),
+        if (isWindowsDesktop) item('focus', Icons.shield_outlined, 'Fokus-Modus'),
+        item('sync', Icons.cloud_sync_outlined, 'Synchronisierung'),
+        item(
+          'theme',
+          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          isDark ? 'Helles Design' : (darkUnlocked ? 'Dunkles Design' : 'Dunkles Design (ab ${AppSettings.darkModeUnlockPoints} Punkten)'),
+          dim: !darkUnlocked && !isDark,
+        ),
+      ],
+    );
   }
 
   void _changePoints(int delta) {
@@ -323,10 +410,14 @@ class _PlannerScreenState extends State<PlannerScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        dateLabel[0].toUpperCase() + dateLabel.substring(1),
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textSecondary),
+                      Flexible(
+                        child: Text(
+                          dateLabel[0].toUpperCase() + dateLabel.substring(1),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.textSecondary),
+                        ),
                       ),
+                      const SizedBox(width: 12),
                       Row(
                         children: [
                           GestureDetector(
@@ -348,21 +439,26 @@ class _PlannerScreenState extends State<PlannerScreen> {
                           ),
                           const SizedBox(width: 16),
                           GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ManageTemplatesScreen(onChanged: _loadTemplates),
-                              ),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const StudyScreen()),
+                              );
+                              _loadStudyRunning();
+                            },
+                            child: Icon(
+                              Icons.school_outlined,
+                              size: 19,
+                              color: _studyRunning ? colors.success : colors.textSecondary,
                             ),
-                            child: Icon(Icons.tune, size: 19, color: colors.textSecondary),
                           ),
                           const SizedBox(width: 16),
                           GestureDetector(
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const FocusScreen()),
+                              MaterialPageRoute(builder: (_) => const IncomeScreen()),
                             ),
-                            child: Icon(Icons.shield_outlined, size: 19, color: colors.textSecondary),
+                            child: Icon(Icons.payments_outlined, size: 19, color: colors.textSecondary),
                           ),
                           const SizedBox(width: 16),
                           GestureDetector(
@@ -372,21 +468,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
                             ),
                             child: Icon(Icons.bar_chart, size: 19, color: colors.textSecondary),
                           ),
-                          const SizedBox(width: 16),
-                          ValueListenableBuilder<ThemeMode>(
-                            valueListenable: AppSettings.themeMode,
-                            builder: (context, mode, _) {
-                              final unlocked = _points >= AppSettings.darkModeUnlockPoints;
-                              return GestureDetector(
-                                onTap: _toggleTheme,
-                                child: Icon(
-                                  mode == ThemeMode.dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-                                  size: 19,
-                                  color: unlocked ? colors.textSecondary : colors.textTertiary,
-                                ),
-                              );
-                            },
-                          ),
+                          const SizedBox(width: 12),
+                          _moreMenu(colors),
                         ],
                       ),
                     ],

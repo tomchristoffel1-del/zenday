@@ -1,3 +1,4 @@
+import 'platform_info.dart';
 import 'dart:async';
 import 'dart:io';
 import 'notifications.dart';
@@ -18,7 +19,7 @@ class UsageGuard {
   void start() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!Platform.isWindows) return;
+      if (!isWindowsDesktop) return;
       try {
         await _tick();
       } catch (_) {

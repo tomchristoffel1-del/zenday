@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'platform_info.dart';
 import 'package:flutter/material.dart';
 import 'app_limits_screen.dart';
 import 'app_picker.dart';
@@ -152,7 +152,7 @@ class _FocusScreenState extends State<FocusScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
                     children: [
-                      if (!Platform.isWindows)
+                      if (!isWindowsDesktop)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: Text(
@@ -376,7 +376,7 @@ class _FocusScreenState extends State<FocusScreen> {
                           Switch(
                             value: _autostart,
                             activeThumbColor: colors.success,
-                            onChanged: Platform.isWindows ? _toggleAutostart : null,
+                            onChanged: isWindowsDesktop ? _toggleAutostart : null,
                           ),
                         ],
                       ),

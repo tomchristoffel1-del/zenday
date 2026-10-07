@@ -27,6 +27,7 @@ class _TemplateComposerState extends State<TemplateComposer> {
   final _storage = ZenStorage();
   List<BlockList> _blockLists = [];
   String? _linkedListId;
+  bool _isStudy = false;
   Set<String> _selectedCategories = {};
 
   @override
@@ -95,6 +96,7 @@ class _TemplateComposerState extends State<TemplateComposer> {
       startTime: _useTime && _start != null ? _fmt(_start!) : null,
       endTime: _useTime && _end != null ? _fmt(_end!) : null,
       linkedListId: _useTime ? linkedListId : null,
+      isStudy: _isStudy,
     ));
     if (!mounted) return;
     final refreshedLists = await _storage.loadBlockLists();
@@ -106,6 +108,7 @@ class _TemplateComposerState extends State<TemplateComposer> {
       _start = null;
       _end = null;
       _linkedListId = null;
+      _isStudy = false;
       _selectedCategories = {};
       _blockLists = refreshedLists;
     });
@@ -147,6 +150,17 @@ class _TemplateComposerState extends State<TemplateComposer> {
               ),
               const SizedBox(width: 8),
               Text('Uhrzeit festlegen', style: TextStyle(fontSize: 13, color: c.textSecondary)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () => setState(() => _isStudy = !_isStudy),
+          child: Row(
+            children: [
+              Icon(_isStudy ? Icons.check_box : Icons.check_box_outline_blank, size: 18, color: c.textSecondary),
+              const SizedBox(width: 8),
+              Text('Lerneinheit', style: TextStyle(fontSize: 13, color: c.textSecondary)),
             ],
           ),
         ),

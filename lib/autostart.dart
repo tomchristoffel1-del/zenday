@@ -1,3 +1,4 @@
+import 'platform_info.dart';
 import 'dart:io';
 
 /// Trägt ZenDay in den Windows-Autostart ein (HKCU Run-Key), damit
@@ -7,7 +8,7 @@ class Autostart {
   static const _keyPath = r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
 
   static Future<bool> enable() async {
-    if (!Platform.isWindows) return false;
+    if (!isWindowsDesktop) return false;
     try {
       final exePath = Platform.resolvedExecutable;
       final result = await Process.run(
@@ -21,7 +22,7 @@ class Autostart {
   }
 
   static Future<bool> disable() async {
-    if (!Platform.isWindows) return false;
+    if (!isWindowsDesktop) return false;
     try {
       final result = await Process.run(
         'reg',

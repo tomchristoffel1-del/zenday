@@ -6,6 +6,7 @@ import 'app_settings.dart';
 import 'onboarding_screen.dart';
 import 'planner_screen.dart';
 import 'storage.dart';
+import 'sync/sync_service.dart';
 import 'theme.dart';
 
 Future<void> main() async {
@@ -16,6 +17,7 @@ Future<void> main() async {
       debugPrint('Uncaught Flutter error: ${details.exceptionAsString()}');
     };
     await initializeDateFormatting('de_DE', null);
+    await SyncService.instance.init();
     await AppSettings.load(ZenStorage());
     runApp(const ZenDayApp());
   }, (error, stack) {
@@ -65,7 +67,22 @@ class _RootRouterState extends State<_RootRouter> {
   @override
   void initState() {
     super.initState();
-    _storage.isOnboarded().then((v) => setState(() => _onboarded = v));
+    _checkOnboarded();
+    SyncService.instance.revision.addListener(_checkOnboarded);
+  }
+
+  @override
+  void dispose() {
+    SyncService.instance.revision.removeListener(_checkOnboarded);
+    super.dispose();
+  }
+
+  /// Kommen beim ersten Abgleich bereits eingerichtete Daten aus der Cloud,
+  /// wechselt die App vom Onboarding direkt zum Planer.
+  Future<void> _checkOnboarded() async {
+    final done = await _storage.isOnboarded();
+    if (!mounted) return;
+    if (_onboarded == null || (_onboarded == false && done)) setState(() => _onboarded = done);
   }
 
   @override

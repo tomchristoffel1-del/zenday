@@ -12,6 +12,7 @@ class _EditForm extends StatefulWidget {
   final String? initialStart;
   final String? initialEnd;
   final String? initialListId;
+  final bool initialIsStudy;
   final ZenStorage storage;
 
   const _EditForm({
@@ -20,6 +21,7 @@ class _EditForm extends StatefulWidget {
     required this.initialStart,
     required this.initialEnd,
     required this.initialListId,
+    required this.initialIsStudy,
     required this.storage,
   });
 
@@ -32,6 +34,7 @@ class _EditFormState extends State<_EditForm> {
   TimeOfDay? _start;
   TimeOfDay? _end;
   String? _linkedListId;
+  bool _isStudy = false;
   List<BlockList> _blockLists = [];
 
   @override
@@ -40,6 +43,7 @@ class _EditFormState extends State<_EditForm> {
     _start = _parse(widget.initialStart);
     _end = _parse(widget.initialEnd);
     _linkedListId = widget.initialListId;
+    _isStudy = widget.initialIsStudy;
     widget.storage.loadBlockLists().then((lists) {
       if (mounted) setState(() => _blockLists = lists);
     });
@@ -98,6 +102,18 @@ class _EditFormState extends State<_EditForm> {
             Expanded(child: _timeButton('Ende', _end, () => _pickTime(false), c)),
           ],
         ),
+        const SizedBox(height: 14),
+        GestureDetector(
+          onTap: () => setState(() => _isStudy = !_isStudy),
+          child: Row(
+            children: [
+              Icon(_isStudy ? Icons.check_box : Icons.check_box_outline_blank, size: 18, color: c.textSecondary),
+              const SizedBox(width: 8),
+              Text('Lerneinheit (zählt zur geplanten Lernzeit)',
+                  style: TextStyle(fontSize: 13, color: c.textSecondary)),
+            ],
+          ),
+        ),
         const SizedBox(height: 18),
         Text('Blockliste während dieser Zeit', style: TextStyle(fontSize: 12, color: c.textSecondary)),
         const SizedBox(height: 8),
@@ -146,11 +162,12 @@ class _EditFormState extends State<_EditForm> {
     );
   }
 
-  ({String title, String? start, String? end, String? listId}) result() => (
+  ({String title, String? start, String? end, String? listId, bool isStudy}) result() => (
         title: _titleController.text.trim(),
         start: _start != null ? _fmt(_start!) : null,
         end: _end != null ? _fmt(_end!) : null,
         listId: _linkedListId,
+        isStudy: _isStudy,
       );
 }
 
@@ -185,6 +202,7 @@ Future<void> showTemplateEditSheet(
                 initialStart: template.startTime,
                 initialEnd: template.endTime,
                 initialListId: template.linkedListId,
+                initialIsStudy: template.isStudy,
                 storage: storage,
               ),
               const SizedBox(height: 20),
@@ -231,6 +249,7 @@ Future<void> showTemplateEditSheet(
     template.startTime = r.start;
     template.endTime = r.end;
     template.linkedListId = r.listId;
+    template.isStudy = r.isStudy;
     await storage.saveTemplates(allTemplates);
     onTemplatesChanged();
   } else {
@@ -244,6 +263,7 @@ Future<void> showTemplateEditSheet(
       startTime: r.start,
       endTime: r.end,
       linkedListId: r.listId,
+      isStudy: r.isStudy,
     ));
     await storage.saveAdHoc(selectedDate, adhoc);
     onDayChanged();
@@ -280,6 +300,7 @@ Future<void> showAdHocEditSheet(
                 initialStart: task.startTime,
                 initialEnd: task.endTime,
                 initialListId: task.linkedListId,
+                initialIsStudy: task.isStudy,
                 storage: storage,
               ),
               const SizedBox(height: 20),
@@ -309,6 +330,7 @@ Future<void> showAdHocEditSheet(
   task.startTime = r.start;
   task.endTime = r.end;
   task.linkedListId = r.listId;
+  task.isStudy = r.isStudy;
   await storage.saveAdHoc(selectedDate, allAdHoc);
   onChanged();
 }

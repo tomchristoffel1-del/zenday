@@ -1,3 +1,4 @@
+import 'platform_info.dart';
 import 'dart:async';
 import 'dart:io';
 import 'models.dart';
@@ -18,7 +19,7 @@ class FocusGuard {
   void start(Future<FocusConfig> Function() loadConfig) {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!Platform.isWindows) return;
+      if (!isWindowsDesktop) return;
       try {
         final config = await loadConfig();
         final active = config.enabled && _isWithinWindow(config);
@@ -96,13 +97,17 @@ class FocusGuard {
     }
     try {
       final file = File(_hostsPath);
-      final lines = await file.readAsLines();
+      final content = await file.readAsString();
+      final newline = content.contains('\r\n') ? '\r\n' : '\n';
+      final lines = content.split(RegExp(r'\r?\n'));
       final kept = <String>[];
       var inBlock = false;
+      var hadBlock = false;
       for (final line in lines) {
         final trimmed = line.trim();
         if (trimmed == _markerStart) {
           inBlock = true;
+          hadBlock = true;
           continue;
         }
         if (trimmed == _markerEnd) {
@@ -110,6 +115,16 @@ class FocusGuard {
           continue;
         }
         if (!inBlock) kept.add(line);
+      }
+
+      // Nichts zu sperren und nichts von uns aufzuräumen: Systemdatei in Ruhe lassen.
+      if (domains.isEmpty && !hadBlock) {
+        _lastAppliedWebsites = domains;
+        return;
+      }
+
+      while (kept.isNotEmpty && kept.last.trim().isEmpty) {
+        kept.removeLast();
       }
       if (domains.isNotEmpty) {
         kept.add(_markerStart);
@@ -119,7 +134,7 @@ class FocusGuard {
         }
         kept.add(_markerEnd);
       }
-      await file.writeAsString('${kept.join('\n')}\n');
+      await file.writeAsString('${kept.join(newline)}$newline');
       await Process.run('ipconfig', ['/flushdns']);
       _lastAppliedWebsites = domains;
     } catch (_) {

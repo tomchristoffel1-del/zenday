@@ -1,3 +1,4 @@
+import 'platform_info.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -8,7 +9,7 @@ import 'theme.dart';
 /// einfachen Fokus-Modus als auch von den benannten Blocklisten genutzt.
 class AppPicker {
   static Future<List<Map<String, String>>> loadRunningApps() async {
-    if (!Platform.isWindows) return [];
+    if (!isWindowsDesktop) return [];
     try {
       final result = await Process.run('powershell', [
         '-NoProfile',
@@ -38,7 +39,7 @@ class AppPicker {
   }
 
   static Future<List<Map<String, String>>> loadInstalledApps() async {
-    if (!Platform.isWindows) return [];
+    if (!isWindowsDesktop) return [];
     try {
       const script = r'''
 $paths = @(
@@ -177,7 +178,7 @@ Get-ItemProperty $paths -ErrorAction SilentlyContinue |
       title: (a) => a['title']!,
       subtitle: (a) => '${a['process']}.exe',
       exe: (a) => '${a['process']}.exe',
-      emptyText: Platform.isWindows
+      emptyText: isWindowsDesktop
           ? 'Keine laufenden Programme mit offenem Fenster gefunden.'
           : 'Programm-Auswahl ist nur unter Windows verfügbar.',
     );
@@ -192,7 +193,7 @@ Get-ItemProperty $paths -ErrorAction SilentlyContinue |
       title: (a) => a['name']!,
       subtitle: (a) => a['exe']!.isEmpty ? 'Programmdatei unbekannt' : a['exe']!,
       exe: (a) => a['exe']!.isEmpty ? null : a['exe']!,
-      emptyText: Platform.isWindows
+      emptyText: isWindowsDesktop
           ? 'Keine installierten Programme gefunden.'
           : 'Programm-Auswahl ist nur unter Windows verfügbar.',
     );

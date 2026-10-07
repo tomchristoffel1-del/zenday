@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models.dart';
 import 'storage.dart';
+import 'sync_screen.dart';
 import 'theme.dart';
 import 'widgets/template_composer.dart';
 
@@ -131,6 +132,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 20),
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncScreen())),
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        'Schon ZenDay auf einem anderen Gerät? Anmelden & synchronisieren',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -1,3 +1,4 @@
+import 'platform_info.dart';
 import 'dart:io';
 
 /// Desktop-Benachrichtigungen ohne zusätzliches Plugin: ruft den nativen
@@ -8,7 +9,7 @@ class NotificationService {
   static String _escape(String s) => s.replaceAll("'", "''");
 
   static Future<void> show(String title, String body) async {
-    if (!Platform.isWindows) return;
+    if (!isWindowsDesktop) return;
     final script = '''
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
 \$xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
