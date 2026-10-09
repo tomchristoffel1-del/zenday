@@ -5,6 +5,7 @@ import 'accent_options.dart';
 import 'app_settings.dart';
 import 'onboarding_screen.dart';
 import 'planner_screen.dart';
+import 'prefs_guard.dart';
 import 'storage.dart';
 import 'sync/sync_service.dart';
 import 'theme.dart';
@@ -16,14 +17,25 @@ Future<void> main() async {
       FlutterError.presentError(details);
       debugPrint('Uncaught Flutter error: ${details.exceptionAsString()}');
     };
-    await initializeDateFormatting('de_DE', null);
-    await SyncService.instance.init();
-    await AppSettings.load(ZenStorage());
+    // Jeder Startschritt darf scheitern oder hängen – das Fenster muss trotzdem kommen.
+    PrefsGuard.repairBeforeStart();
+    await _startStep('Datumsformate', () => initializeDateFormatting('de_DE', null));
+    await _startStep('Sync', () => SyncService.instance.init());
+    await _startStep('Einstellungen', () => AppSettings.load(ZenStorage()));
     runApp(const ZenDayApp());
+    PrefsGuard.startBackups();
   }, (error, stack) {
     // Ein einzelner unerwarteter Fehler darf ZenDay nie komplett beenden.
     debugPrint('Uncaught zone error: $error\n$stack');
   });
+}
+
+Future<void> _startStep(String name, Future<void> Function() step) async {
+  try {
+    await step().timeout(const Duration(seconds: 5));
+  } catch (e) {
+    debugPrint('Startschritt "$name" fehlgeschlagen: $e');
+  }
 }
 
 class ZenDayApp extends StatelessWidget {

@@ -4,6 +4,10 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+constexpr UINT_PTR kShowFallbackTimerId = 0x5A44;
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -36,6 +40,10 @@ bool FlutterWindow::OnCreate() {
   // window is shown. It is a no-op if the first frame hasn't completed yet.
   flutter_controller_->ForceRedraw();
 
+  // Sicherheitsnetz: Kommt der erste Frame nicht (z. B. weil der Start hängt),
+  // das Fenster trotzdem zeigen, statt unsichtbar im Hintergrund weiterzulaufen.
+  ::SetTimer(GetHandle(), kShowFallbackTimerId, 4000, nullptr);
+
   return true;
 }
 
@@ -62,6 +70,13 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   switch (message) {
+    case WM_TIMER:
+      if (wparam == kShowFallbackTimerId) {
+        ::KillTimer(hwnd, kShowFallbackTimerId);
+        this->Show();
+        return 0;
+      }
+      break;
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;

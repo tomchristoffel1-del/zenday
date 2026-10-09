@@ -7,6 +7,19 @@
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  // Nur eine ZenDay-Instanz: Zwei Instanzen würden sich gegenseitig die
+  // Datendatei überschreiben. Läuft schon eine, deren Fenster nach vorne holen.
+  HANDLE single_instance = ::CreateMutexW(nullptr, TRUE, L"Local\\ZenDaySingleInstance");
+  if (single_instance && ::GetLastError() == ERROR_ALREADY_EXISTS) {
+    HWND existing = ::FindWindowW(L"FLUTTER_RUNNER_WIN32_WINDOW", L"zenday");
+    if (existing) {
+      ::ShowWindow(existing, ::IsIconic(existing) ? SW_RESTORE : SW_SHOW);
+      ::SetForegroundWindow(existing);
+      return EXIT_SUCCESS;
+    }
+    // Keine sichtbare Instanz gefunden (hängt oder beendet sich gerade): normal starten.
+  }
+
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {
