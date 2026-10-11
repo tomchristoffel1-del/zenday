@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'day_insights_screen.dart';
 import 'models.dart';
 import 'storage.dart';
 import 'theme.dart';
@@ -79,6 +80,15 @@ class _TrackingStatsScreenState extends State<TrackingStatsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                     children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                              context, MaterialPageRoute(builder: (_) => const DayInsightsScreen())),
+                          icon: const Icon(Icons.insights, size: 18),
+                          label: const Text('Tagesanalyse: Notizen & Lernziele'),
+                        ),
+                      ),
                       _statTile('🥦 Gemüse gegessen', _stats!.vegetableDays, _stats!.totalDays, colors),
                       _statTile('🍬 Kein Zucker', _stats!.sugarFreeDays, _stats!.totalDays, colors),
                       _statTile('🏃 Sport gemacht', _stats!.sportDays, _stats!.totalDays, colors),

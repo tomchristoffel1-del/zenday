@@ -18,6 +18,7 @@ const _prefixes = [
   'zenday_tracking_',
   'zenday_ssess_',
   'zenday_income_',
+  'zenday_note_',
 ];
 
 bool isSyncableKey(String key) => _exactKeys.contains(key) || _prefixes.any(key.startsWith);

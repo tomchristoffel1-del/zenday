@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:zenday/accent_options.dart';
+import 'package:zenday/day_insights_screen.dart';
 import 'package:zenday/income_screen.dart';
 import 'package:zenday/planner_screen.dart';
 import 'package:zenday/study_screen.dart';
@@ -32,12 +33,26 @@ void main() {
 
   for (final entry in phones.entries) {
     group(entry.key, () {
-      setUp(() => SharedPreferences.setMockInitialValues({
-            'flutter.zenday_onboarded': true,
-            'flutter.zenday_templates':
-                '[{"id":"t1","title":"Lernblock 1: WiWi","repeat":"daily","customDays":[],"startTime":"08:00","endTime":"10:00","isStudy":true}]',
-            'flutter.zenday_income_2026-09': '1234.5',
-          }));
+      setUp(() {
+        // 14 vergangene Tage mit Notizen und Lerneinheiten, damit alle Abschnitte der Tagesanalyse erscheinen.
+        final now = DateTime.now();
+        final days = <String, Object>{};
+        const notes = ['Krank, Fieber', 'gut geschlafen, sehr konzentriert', 'müde und gestresst', 'Freunde getroffen'];
+        for (var i = 1; i <= 14; i++) {
+          final d = DateTime(now.year, now.month, now.day - i, 9);
+          final key = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+          days['flutter.zenday_note_$key'] = '{"text":"${notes[i % notes.length]}"}';
+          days['flutter.zenday_ssess_s$i'] =
+              '{"id":"s$i","start":"${d.toIso8601String()}","seconds":${(i % 4) * 2400},"moduleId":"wiwi","activity":"pages","pages":5}';
+        }
+        SharedPreferences.setMockInitialValues({
+          'flutter.zenday_onboarded': true,
+          'flutter.zenday_templates':
+              '[{"id":"t1","title":"Lernblock 1: WiWi","repeat":"daily","customDays":[],"startTime":"08:00","endTime":"10:00","isStudy":true}]',
+          'flutter.zenday_income_2026-09': '1234.5',
+          ...days,
+        });
+      });
 
       Future<void> open(WidgetTester tester, Widget home) async {
         tester.view.physicalSize = entry.value * 2;
@@ -69,6 +84,33 @@ void main() {
         await scrollThrough(tester);
         expect(find.text('Pflichtaufgaben'), findsNothing, reason: 'bis ans Ende gescrollt, Überschrift liegt darüber');
         await tester.pumpWidget(const SizedBox());
+      });
+
+      testWidgets('Notiz zum Tag', (tester) async {
+        await open(tester, const PlannerScreen());
+        await tester.tap(find.byIcon(Icons.edit_note));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField).last, 'müde, aber konzentriert');
+        await tester.pump();
+        expect(find.text('😴 Müde'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Fertig'));
+        expect(tester.takeException(), isNull);
+        await tester.pumpAndSettle();
+        expect(find.text('müde, aber konzentriert'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox());
+      });
+
+      testWidgets('Tagesanalyse', (tester) async {
+        await open(tester, const DayInsightsScreen());
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(find.text('Tage mit Notiz'), findsOneWidget);
+        expect(find.text('Lernziel verfehlt – woran lag es?'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Gesamt'));
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(find.text('Tage mit Notiz'), findsOneWidget);
+        await scrollThrough(tester);
       });
 
       testWidgets('Synchronisierung', (tester) async {

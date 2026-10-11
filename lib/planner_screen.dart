@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'app_settings.dart';
+import 'day_insights_screen.dart';
+import 'day_notes.dart';
 import 'focus_engine.dart';
 import 'focus_guard.dart';
 import 'focus_screen.dart';
@@ -20,6 +22,7 @@ import 'task_edit_sheet.dart';
 import 'theme.dart';
 import 'tracking_stats_screen.dart';
 import 'usage_guard.dart';
+import 'widgets/day_note.dart';
 import 'widgets/task_row.dart';
 import 'widgets/tracking_row.dart';
 
@@ -52,6 +55,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
   bool _loaded = false;
   int _points = 0;
   DailyTracking _tracking = DailyTracking();
+  DayNote _note = DayNote();
 
   Timer? _reminderTimer;
   final Set<String> _notifiedToday = {};
@@ -110,6 +114,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       'zenday_tpldone_${_dayString(day)}',
       'zenday_order_${_dayString(day)}',
       'zenday_tracking_${_dayString(day)}',
+      'zenday_note_${_dayString(day)}',
     };
     if (keys.any(dayKeys.contains)) _loadDay();
     if (keys.contains('zenday_templates')) _loadTemplates();
@@ -151,6 +156,8 @@ class _PlannerScreenState extends State<PlannerScreen> {
             );
           case 'focus':
             Navigator.push(context, MaterialPageRoute(builder: (_) => const FocusScreen()));
+          case 'insights':
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const DayInsightsScreen()));
           case 'sync':
             Navigator.push(context, MaterialPageRoute(builder: (_) => const SyncScreen()));
           case 'theme':
@@ -160,6 +167,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       itemBuilder: (_) => [
         item('plan', Icons.tune, 'Grundplan bearbeiten'),
         if (isWindowsDesktop) item('focus', Icons.shield_outlined, 'Fokus-Modus'),
+        item('insights', Icons.insights, 'Tagesanalyse'),
         item('sync', Icons.cloud_sync_outlined, 'Synchronisierung'),
         item(
           'theme',
@@ -197,6 +205,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
     final done = await _storage.loadTemplateDoneIds(_selectedDate);
     final order = await _storage.loadOrder(_selectedDate);
     final tracking = await _storage.loadTracking(_selectedDate);
+    final note = await _storage.loadNote(_selectedDate);
     for (final c in _adhocControllers.values) {
       c.dispose();
     }
@@ -209,6 +218,7 @@ class _PlannerScreenState extends State<PlannerScreen> {
       _templateDone = done;
       _order = order;
       _tracking = tracking;
+      _note = note;
       _loaded = true;
     });
   }
@@ -226,6 +236,17 @@ class _PlannerScreenState extends State<PlannerScreen> {
   void _setMood(Mood? mood) {
     setState(() => _tracking.mood = mood);
     _storage.saveTracking(_selectedDate, _tracking);
+  }
+
+  Future<void> _editNote() async {
+    final colors = Theme.of(context).extension<ZenTheme>()!.colors;
+    final day = _selectedDate;
+    final label = DateFormat('EEEE, d. MMMM', 'de_DE').format(day);
+    final edited = await showDayNoteSheet(context, _note, label, colors);
+    if (edited == null) return;
+    await _storage.saveNote(day, edited);
+    if (!mounted || day != _selectedDate) return;
+    setState(() => _note = edited);
   }
 
   void _selectDate(DateTime date) {
@@ -534,6 +555,10 @@ class _PlannerScreenState extends State<PlannerScreen> {
                     onToggleSugarFree: _toggleSugarFree,
                     onMoodChanged: _setMood,
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: DayNoteRow(note: _note, colors: colors, onTap: _editNote),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),

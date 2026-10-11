@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'sync/synced_prefs.dart';
 import 'models.dart';
 import 'study_models.dart';
+import 'day_notes.dart';
 
 /// Lokale, blitzschnelle Persistenz ohne Server, ohne Ladezeiten.
 class ZenStorage {
@@ -30,6 +31,8 @@ class ZenStorage {
   static String _orderKey(DateTime d) => 'zenday_order_${_fmt(d)}';
   static String _usageKey(DateTime d) => 'zenday_usage_${_fmt(d)}';
   static String _trackingKey(DateTime d) => 'zenday_tracking_${_fmt(d)}';
+  static const _notePrefix = 'zenday_note_';
+  static String _noteKey(DateTime d) => '$_notePrefix${_fmt(d)}';
 
   Future<bool> isOnboarded() async {
     final prefs = await SyncedPrefs.instance();
@@ -204,6 +207,40 @@ class ZenStorage {
   Future<void> saveTracking(DateTime date, DailyTracking tracking) async {
     final prefs = await SyncedPrefs.instance();
     await prefs.setString(_trackingKey(date), jsonEncode(tracking.toJson()));
+  }
+
+  Future<DayNote> loadNote(DateTime date) async {
+    final prefs = await SyncedPrefs.instance();
+    final raw = prefs.getString(_noteKey(date));
+    if (raw == null) return DayNote();
+    try {
+      return DayNote.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return DayNote();
+    }
+  }
+
+  Future<void> saveNote(DateTime date, DayNote note) async {
+    final prefs = await SyncedPrefs.instance();
+    if (note.isEmpty) {
+      await prefs.remove(_noteKey(date));
+    } else {
+      await prefs.setString(_noteKey(date), jsonEncode(note.toJson()));
+    }
+  }
+
+  /// Alle Tagesnotizen, nach Datum ("yyyy-MM-dd").
+  Future<Map<String, DayNote>> loadAllNotes() async {
+    final prefs = await SyncedPrefs.instance();
+    final result = <String, DayNote>{};
+    for (final key in prefs.getKeys().where((k) => k.startsWith(_notePrefix))) {
+      final raw = prefs.getString(key);
+      if (raw == null) continue;
+      try {
+        result[key.substring(_notePrefix.length)] = DayNote.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      } catch (_) {}
+    }
+    return result;
   }
 
   /// Jede Lerneinheit liegt unter einem eigenen Schlüssel, damit zwei Geräte,
